@@ -16,6 +16,8 @@ import {
 } from "iconoir-react";
 import { cn, range, setWith, setWithout, useMapById } from "./util";
 import Loader from "./Loader";
+import { exportPdf } from "./export";
+import { State, SourcePage } from "./types";
 
 const THUMB_WIDTH = 720;
 
@@ -24,30 +26,6 @@ const INITIAL_THUMB_SIZE = 256;
 const MAX_THUMB_SIZE = 1024;
 
 const DRAG_THRESHOLD = 5;
-
-interface State {
-  files: StateFile[];
-  pages: StatePage[];
-}
-
-interface StateFile {
-  id: string;
-  name: string;
-  file: File;
-  pages: StateFilePage[];
-}
-
-interface StateFilePage {
-  thumbnail: string;
-  width: number;
-  height: number;
-}
-
-interface StatePage {
-  sourceFile: string;
-  sourcePage: number;
-  rotation: number;
-}
 
 const INITIAL_STATE: State = {
   files: [],
@@ -89,7 +67,7 @@ function App() {
     const task = pdfjs.getDocument(buf);
     const doc = await task.promise;
 
-    const sourcePages: StateFilePage[] = [];
+    const sourcePages: SourcePage[] = [];
 
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
@@ -116,7 +94,7 @@ function App() {
       });
 
       if (!blob) {
-        throw new Error("Couln't create blob from canvas");
+        throw new Error("Couln't createf blob from canvas");
       }
 
       const thumbnail = URL.createObjectURL(blob);
@@ -150,6 +128,17 @@ function App() {
       ],
     }));
     setWorking(false);
+  };
+
+  const onClickSave = async () => {
+    setWorking(true);
+    const url = await exportPdf({
+      filesById,
+      pages: state.pages,
+      log: (s) => console.log(s),
+    });
+    setWorking(false);
+    window.open(url, "_blank");
   };
 
   const onClickDelete = () => {
@@ -203,7 +192,7 @@ function App() {
           onChange={onFileInputChange}
         />
 
-        <button className="App-toolbar-button">
+        <button className="App-toolbar-button" onClick={onClickSave}>
           <Download />
           Save
         </button>
