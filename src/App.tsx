@@ -1,10 +1,6 @@
 import React, { useRef, useState } from "react";
 import "./App.css";
 
-import * as pdfjs from "pdfjs-dist";
-
-import PdfJsWorker from "pdfjs-dist/build/pdf.worker?url";
-
 import {
   Import,
   Download,
@@ -17,9 +13,8 @@ import {
 import { cn, range, setWith, setWithout, useMapById } from "./util";
 import Loader from "./Loader";
 import { exportPdf } from "./export";
-import { State, SourcePage } from "./types";
-
-const THUMB_WIDTH = 720;
+import { State } from "./types";
+import { importPdf } from "./import";
 
 const MIN_THUMB_SIZE = 64;
 const INITIAL_THUMB_SIZE = 256;
@@ -31,8 +26,6 @@ const INITIAL_STATE: State = {
   files: [],
   pages: [],
 };
-
-let fileIdx = 0;
 
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,74 +51,14 @@ function App() {
       return;
     }
     setWorking(true);
-    console.log(fileInputRef.current.files);
 
     const file0 = fileInputRef.current.files[0];
-
-    const buf = await file0.arrayBuffer();
-    pdfjs.GlobalWorkerOptions.workerSrc = PdfJsWorker;
-    const task = pdfjs.getDocument(buf);
-    const doc = await task.promise;
-
-    const sourcePages: SourcePage[] = [];
-
-    for (let p = 1; p <= doc.numPages; p++) {
-      const page = await doc.getPage(p);
-
-      const s1viewport = page.getViewport({ scale: 1 });
-      const scale = THUMB_WIDTH / s1viewport.width;
-
-      const viewport = page.getViewport({ scale });
-
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const canvasContext = canvas.getContext("2d");
-
-      if (!canvasContext) {
-        throw new Error("No canvas context to render to");
-      }
-
-      const renderTask = page.render({ canvasContext, viewport });
-      await renderTask.promise;
-
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve);
-      });
-
-      if (!blob) {
-        throw new Error("Couln't createf blob from canvas");
-      }
-
-      const thumbnail = URL.createObjectURL(blob);
-      sourcePages.push({
-        thumbnail,
-        width: s1viewport.width,
-        height: s1viewport.height,
-      });
-    }
-
-    const fileId = `f${++fileIdx}`;
+    const result = await importPdf({ file: file0 });
 
     setState((s) => ({
       ...s,
-      files: [
-        ...s.files,
-        {
-          id: fileId,
-          name: file0.name,
-          file: file0,
-          pages: sourcePages,
-        },
-      ],
-      pages: [
-        ...s.pages,
-        ...sourcePages.map((page, p) => ({
-          sourceFile: fileId,
-          sourcePage: p,
-          rotation: 0,
-        })),
-      ],
+      files: [...s.files, result.file],
+      pages: [...s.pages, ...result.pages],
     }));
     setWorking(false);
   };
