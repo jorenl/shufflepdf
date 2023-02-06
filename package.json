@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "deploy": "npm run build && gh-pages -d dist",
     "preview": "vite preview"
   },
   "dependencies": {
+    "gh-pages": "^5.0.0",
     "iconoir-react": "^6.2.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^3.3.122",
